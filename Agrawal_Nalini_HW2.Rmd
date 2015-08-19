@@ -1,0 +1,376 @@
+---
+title: "Agrawal Nalini HW 2"
+author: "Nalini"
+date: "Sunday, August 16, 2015"
+output: word_document
+---
+###Question 1
+
+```{r}
+ABIA = read.csv('C:/Users/32inder/Desktop/MSBA/Academic/Predictive Modelling/STA380/data/ABIA.csv')
+```
+
+Data cleaning
+
+```{r}
+ABIA[is.na(ABIA)]= 0
+attach(ABIA)
+```
+
+Convert continuous variables into factors
+
+```{r}
+ABIA$DayofMonth= as.factor(ABIA$DayofMonth)
+ABIA$DayOfWeek= as.factor(ABIA$DayOfWeek)
+ABIA$Month= as.factor(ABIA$Month)
+```
+
+Run the aggregate function on the Departure Delay and Arrival Delay columns by Days of the Week. This gives the average arrival and departure delays for each day of the week.
+
+We are also aggregating various metrics like the Security Delay, Carrier Delay, Weather Delay, NAS Delay, LateAircraft Delay for the days of the week and for the months of the year.
+
+```{r}
+aggdepdelay = aggregate(DepDelay,by = list(DayOfWeek), FUN = mean, na.rm= TRUE)
+aggarrdelay = aggregate(ArrDelay,by = list(DayOfWeek), FUN = mean, na.rm= TRUE)
+aggsecdelay = aggregate(SecurityDelay,by = list(DayOfWeek), FUN = mean, na.rm= TRUE)
+aggcardelay = aggregate(CarrierDelay,by = list(DayOfWeek), FUN = mean, na.rm= TRUE)
+aggweatdelay = aggregate(WeatherDelay,by = list(DayOfWeek), FUN = mean, na.rm= TRUE)
+aggNASdelay = aggregate(NASDelay,by = list(DayOfWeek), FUN = mean, na.rm= TRUE)
+agglatefldelay = aggregate(LateAircraftDelay,by = list(DayOfWeek), FUN = mean, na.rm= TRUE)
+
+
+#Aggregating the departure and arrival delays by month of the year
+aggdepdelaymonth = aggregate(DepDelay,by = list(Month), FUN = mean, na.rm= TRUE)
+aggarrdelaymonth = aggregate(ArrDelay,by = list(Month), FUN = mean, na.rm= TRUE)
+aggsecdelaymonth = aggregate(SecurityDelay,by = list(Month), FUN = mean, na.rm= TRUE)
+aggcardelaymonth = aggregate(CarrierDelay,by = list(Month), FUN = mean, na.rm= TRUE)
+aggweatdelaymonth = aggregate(WeatherDelay,by = list(Month), FUN = mean, na.rm= TRUE)
+aggNASdelaymonth = aggregate(NASDelay,by = list(Month), FUN = mean, na.rm= TRUE)
+agglatefldelaymonth = aggregate(LateAircraftDelay,by = list(Month), FUN = mean, na.rm= TRUE)
+
+
+
+```
+
+Create a plot for the Average arrival and departure delay for each day of the week and for each Month and adding different measures of delay so analyze which measures lead to the maximum delay.
+
+```{r}
+plot(aggdepdelay$x, type ="b", xlab = "Day of the Week", ylab = "Average minutes of Delay", col = "purple", lwd = 3, ylim = c(1,30), main = " Highest departure and arrival delays on Friday due to LateAircraft Delay" )
+lines(aggarrdelay$x, type = "b", col = "blue", lwd = 3)
+lines(aggsecdelay$x, type = "l", col = "deeppink4", lwd = 3)
+lines(aggcardelay$x, type = "l", col = "yellow", lwd = 3)
+lines(aggweatdelay$x, type = "l", col = "black", lwd = 3)
+lines(aggNASdelay$x, type = "l", col = "pink", lwd = 3)
+lines(agglatefldelay$x, type = "l", col = "orange", lwd = 3)
+legend ("topright", c("Departure Delay", "Arrival Delay", "Delay due to Security", "Carrier Delay", "Weather Delay", "NAS Delay", "LateAircraft Delay"), lty = 1, col = c('purple','blue', 'deeppink4','yellow', 'black', 'pink', 'orange'))
+
+
+#Creating a plot that shows the aggregate departure, arrival delays, Security delays, Carrier Delays, Weather Delays, NAS delays, LateAircraft Delays for each month of the year
+
+plot(aggdepdelaymonth$x, type ="b", xlab = "Month of the Year", ylab = "Average minutes of Delay", col = "purple", lwd = 3, ylim = c(1,30), main = " Highest departure and arrival delays during the Holidays due to LateAircraft Delay" )
+lines(aggarrdelaymonth$x, type = "b", col = "blue", lwd = 3)
+lines(aggsecdelaymonth$x, type = "l", col = "deeppink4", lwd = 3)
+lines(aggcardelaymonth$x, type = "l", col = "yellow", lwd = 3)
+lines(aggweatdelaymonth$x, type = "l", col = "black", lwd = 3)
+lines(aggNASdelaymonth$x, type = "l", col = "pink", lwd = 3)
+lines(agglatefldelaymonth$x, type = "l", col = "orange", lwd = 3)
+legend ("topright", c("Departure Delay", "Arrival Delay", "Delay due to Security", "Carrier Delay", "Weather Delay", "NAS Delay", "LateAircraft Delay"), lty = 1, col = c('purple','blue', 'deeppink4','yellow', 'black', 'pink', 'orange'))
+
+
+```
+
+
+We can deduce the following form Plot 1:
+
+- Highest minutes of arrival and departure delays are on Friday
+- Measures like the Delay in Security, Weather delay, NAS delay, are consistent which shows that these are not the causes of the delay for these flights
+- The LateAircraft Delay closely mimicks the Arrival Delay. This tells us that the key reason for the delay in the flights is LateAircraft Delay.
+
+
+We can deduce the following form Plot 2:
+
+- The peaks for the arrival and departure delays are in March, Summer and during Christmas. This shows that the highest delays are during the holiday season.
+- Measures like the Delay in Security, Weather delay, NAS delay, are consistent which shows that these are not the causes of the delay for these flights
+- The LateAircraft Delay closely mimicks the Arrival Delay. This tells us that the key reason for the delay in the flights is LateAircraft Delay.
+
+
+
+###Question 2
+
+```{r}
+#Importing the library to run the different models for this question
+library(tm)
+library(randomForest)
+library(rpart)
+library(ggplot2)
+library(caret)
+library(plyr)
+library(e1071)
+
+```
+
+Sourcing the Reader Plain function that will act as a helper function when importing the data
+
+```{r}
+
+readerPlain = function(fname){
+  readPlain(elem=list(content=readLines(fname)), 
+            id=fname, language='en') }
+
+```
+
+
+##Create the Training Corpus
+
+```{r, results = 'hide'}
+author_dirs = Sys.glob('C:/Users/32inder/Desktop/MSBA/Academic/Predictive Modelling/STA380/data/ReutersC50/C50train/*')
+file_list = NULL
+train_labels = NULL
+for(author in author_dirs) {
+  author_name = substring(author, first=93)
+  files_to_add = Sys.glob(paste0(author, '/*.txt'))
+  file_list = append(file_list, files_to_add)
+  train_labels = append(train_labels, rep(author_name, length(files_to_add)))
+}
+
+```
+
+Clean up the data and adding better names to the training corpus
+
+```{r, results='hide'}
+all_docs = lapply(file_list, readerPlain) 
+names(all_docs) = file_list
+names(all_docs) = sub('.txt', '', names(all_docs))
+
+```
+
+Initialize the Training corpus
+
+```{r, results='hide'}
+train_corpus = Corpus(VectorSource(all_docs))
+names(train_corpus) = file_list
+```
+
+Pre-process the data and tokenizing it
+
+```{r, results='hide'}
+train_corpus = tm_map(train_corpus, content_transformer(removeNumbers)) 
+train_corpus = tm_map(train_corpus, content_transformer(removePunctuation)) 
+train_corpus = tm_map(train_corpus, content_transformer(stripWhitespace)) 
+train_corpus = tm_map(train_corpus, content_transformer(removeWords), stopwords("SMART"))
+train_corpus = tm_map(train_corpus, content_transformer(tolower)) 
+
+```
+
+Create the training Document Term Matrix and a dense matrix
+
+```{r, results='hide'}
+DTM_train = DocumentTermMatrix(train_corpus)
+DTM_train = removeSparseTerms(DTM_train, 0.975)
+
+```
+
+##Create the Testing Corpus
+
+```{r, results='hide'}
+author_dirs = Sys.glob('C:/Users/32inder/Desktop/MSBA/Academic/Predictive Modelling/STA380/data/ReutersC50/C50test/*')
+file_list = NULL
+test_labels = NULL
+for(author in author_dirs) {
+  author_name = substring(author, first=92)
+  files_to_add = Sys.glob(paste0(author, '/*.txt'))
+  file_list = append(file_list, files_to_add)
+  test_labels = append(test_labels, rep(author_name, length(files_to_add)))
+}
+
+
+```
+
+Clean up the data and add better names to the testing corpus
+
+```{r, results='hide'}
+all_docs = lapply(file_list, readerPlain) 
+names(all_docs) = file_list
+names(all_docs) = sub('.txt', '', names(all_docs))
+
+```
+
+Initialize the testing corpus
+
+```{r, results='hide'}
+test_corpus = Corpus(VectorSource(all_docs))
+names(test_corpus) = file_list
+
+```
+
+Pre-processing the data and tokenizing it
+
+```{r,results='hide'}
+test_corpus = tm_map(test_corpus, content_transformer(tolower)) 
+test_corpus = tm_map(test_corpus, content_transformer(removeNumbers)) 
+test_corpus = tm_map(test_corpus, content_transformer(removePunctuation)) 
+test_corpus = tm_map(test_corpus, content_transformer(stripWhitespace)) 
+test_corpus = tm_map(test_corpus, content_transformer(removeWords), stopwords("SMART"))
+
+
+```
+
+## Create a Dictionary
+
+We need to create a dictionary since there are words in the test set that we have not seen in the training set. This dictionary will allow us to take words from the testing corpus.
+
+```{r,results='hide'}
+rdict = NULL
+rdict = dimnames(DTM_train)[[2]]
+```
+
+Using the words in the dictionary create a Document Term Matrix and matrix. This allows us to mitigate the effect of words that are in the testing corpus but not in the training corpus.
+
+```{r, results='hide'}
+DTM_test = DocumentTermMatrix(test_corpus, list(dictionary=rdict))
+DTM_test = removeSparseTerms(DTM_test, 0.95)
+
+
+```
+
+Convert a Document Term Matrix into a DataFrame so it can be used in a Classifier Model
+
+```{r, results='hide'}
+
+DTM_train_df = as.data.frame(inspect(DTM_train))
+
+DTM_test_df = as.data.frame(inspect(DTM_test))
+
+
+```
+
+## Using the Naive Bayes Model to predict the authors
+
+```{r, results='hide'}
+
+naivebayes = naiveBayes(x=DTM_train_df, y=as.factor(train_labels), laplace=1)
+
+```
+
+Use the Naive Bayes model to predict on the test corpus
+
+```{r, results='hide'}
+naivebayespredict = predict(naivebayes, DTM_test_df)
+```
+
+Tabulate the results and generate summary statistics.
+
+```{r}
+
+confusionmatNB = confusionMatrix(table(naivebayespredict, test_labels))
+confusinmatNB$overall
+
+```
+
+The results from the confusion matrix show that the accuracy score of the model which is 18.52%. Witht this model, we can predict the authors  Thus we can see that Naive Bayes is not a very good model for this corpus.
+
+
+## Run a Random Forest model to predict the authors
+
+Convert the test and training Document Term matrices to a matrices
+
+```{r,results='hide'}
+DTM_test = as.matrix(DTM_test)
+DTM_train = as.matrix(DTM_train)
+
+```
+
+Since this model requires the same number of columns in the test and training corpus, we add additional empty columns to the test dataset to ensure that there is an alignment.
+
+```{r, results='hide'}
+count_of_words <- data.frame(DTM_test[,intersect(colnames(DTM_test), colnames(DTM_train))])
+words <- read.table(textConnection(""), col.names = colnames(DTM_train), colClasses = "integer")
+```
+
+Bind the x and y data frame and table created above and convert it to a data frame
+
+```{r, results='hide'}
+
+DTM_test_new = rbind.fill(count_of_words, words)
+
+DTM_test_dataframe = as.data.frame(DTM_test_new)
+
+```
+
+Run the Random Forest model to determine the authors
+
+```{r, results='hide'}
+
+randomforestmodel = randomForest(x=DTM_train_df, y=as.factor(train_labels), mtry=3, ntree=200)
+```
+
+Use the above model to Predict
+
+```{r,results = 'hide'}
+
+randomforestpredict = predict(randomforestmodel, data=DTM_test_clean)
+
+```
+
+Create a confusion matrix to tabulate the results and see the accuracy
+
+```{r}
+
+confusionmatRF = confusionMatrix(table(randomforestpredict, test_labels))
+confusionmatRF$overall
+
+```
+
+The above confusion matrix gives us an accuracy score of 70.8% after using a Random Forest model. This shows that Random Forest is a better model to use for this particular dataset.
+
+The Naive Bayes model does not do well in this model since I chose a sparsity of 95%. If we decrease the sparsity of the model, the accuracy will improve but the model will be overfitting. 
+With the metrics that we chose above, Random Forest provides a good accuracy score without overfitting the model.
+
+
+### Question 3
+
+```{r}
+library(arules)  # has a big ecosystem of packages built around it
+# Read 
+groceries <- read.transactions('https://raw.githubusercontent.com/jgscott/STA380/master/data/groceries.txt', format = 'basket', sep = ',')
+
+```
+
+Applying the apriori algorithm to find itemsets that occur frequently
+
+```{r}
+groceriesrules <- apriori(groceries, parameter=list(support=.01, confidence=.5, maxlen=5))
+                         
+# Look at the output by using the inspect function
+inspect(groceriesrules)
+```
+
+Choose a subset to inspect the data
+
+```{r}
+#Different subsets using different metrics give different results:
+
+
+#When lift >3:
+inspect(subset(groceriesrules, subset=lift > 3))
+
+# I used lift>3, since this was the highest value of lift that generated the most exclusive subsets. Higher value of lift would lead to higher dependance, so taking a high value of lift would show the subsets that have the highest occurance in the itemsets.
+
+#When confidence > 0.575:
+
+inspect(subset(groceriesrules, subset=confidence > 0.575))
+
+# I used confidence greater than 0.575 since this was the highest value of confidence, that generated the most exclusive and good subset. A  confidence higher than 0.59 would not generate any subsets and a confidence much lower than 0.575 would generate too many subsets. A Higher confidence will show how often items in whole milk and other vegetables appear in curd, yogurt, root vegetables, tropical fruit, citrus fruit.
+
+#When confidence >0.57 and support >0.011:
+
+inspect(subset(groceriesrules, subset=support > .011 & confidence > 0.58))
+
+#I used the above two specific metrics as these two metrics combined give us the most exclusive subset. Support less than 0.011 and confidence lesser than 0.57 would not give us the most exlusive subset with these two metrics. 
+
+```
+ 
+
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
